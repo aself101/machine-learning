@@ -13,6 +13,15 @@ var functs = require('./recommendations');
   //console.log(functs.getRecommendations(critics, 'Toby',simDistance));
   //var movies = functs.transform(critics);
   //console.log(functs.topMatches(movies, 'Superman Returns', 5, simPearson));
-  var itemSim = functs.calculateSimilarItems(critics, 10, simDistance);
-  functs.getRecommendedItems(critics, itemSim, 'Toby');
+  //var itemSim = functs.calculateSimilarItems(critics, 10, simDistance);
+  //console.log(functs.getRecommendedItems(critics, itemSim, 'Toby'));
+  //console.log(functs.loadMovieLens());
+  var prefs = functs.loadMovieLens();
+  //console.log(prefs['87']);
+  var itemSim = functs.calculateSimilarItems(prefs, 50, simDistance);
+  console.log(functs.getRecommendedItems(prefs, itemSim, '87'));
+  //console.log(functs.getRecommendations(prefs, '934', simDistance));
+
+
+
 })();

@@ -1,14 +1,13 @@
-
 // Returns the top matches
 function topMatches(prefs, person, n, similarity) {
   var scores = 0;
   var count = 0;
-  var mapping = new Map();
+  var mapping = {};
   for (var other in prefs) {
     if (other != person) {
       if (count === n) break;
       scores = similarity(prefs, person, other);
-      mapping.set(other, scores);
+      mapping[other] = scores;
       count++;
     }
   }
@@ -19,7 +18,7 @@ function topMatches(prefs, person, n, similarity) {
 function getRecommendations(prefs, person, similarity) {
   var totals = {}, simSums = {};
   var sim = 0;
-  var mapping = new Map();
+  var mapping = {};
   // Initialize objs for counts
   for (var other in prefs) {
     for (var item in prefs[other]) {
@@ -50,7 +49,7 @@ function getRecommendations(prefs, person, similarity) {
 
   for (var item in totals) {
     if (isNaN(totals[item] / simSums[item])) continue;
-    mapping.set((totals[item] / simSums[item]), item);
+    mapping[totals[item] / simSums[item]] = item;
   }
 
   return mapping;
@@ -75,16 +74,17 @@ function transformPrefs(prefs) {
   return result;
 }
 
+// Returns similar items based on users prefs
 function calculateSimilarItems(prefs, n, similarity) {
     // Obj of items showing which other items they are most similar to
     var result = {};
     var itemPreferences = transformPrefs(prefs);
     var count = 0, scores;
-
+    console.log("Calculating similar items...");
     for (var item in itemPreferences) {
       count++;
       if (count % 100 === 0) {
-        console.log(c + " " + Object.size(itemPreferences));
+        //console.log(count + " " + Object.size(itemPreferences));
       }
       // Find the most similar items to this one
       scores = topMatches(itemPreferences, item, n, similarity);
@@ -97,21 +97,90 @@ function calculateSimilarItems(prefs, n, similarity) {
 function getRecommendedItems(prefs, itemMatch, user) {
   var userRatings = prefs[user];
   var scores = {}, totalSimilarity = {};
-  var mapping = new Map();
+  var mapping = {};
 
+  // Initialize empty obj for counts
   for (var item in userRatings) {
-    //console.log(item + ' ' + userRatings[item]);
-    console.log(itemMatch[item]);
-
+    for (var i in itemMatch[item]) {
+      scores[i] = 0;
+      totalSimilarity[i] = 0;
+    }
   }
 
+  for (var item in userRatings) {
+    for (var sim in itemMatch[item]) {
+      if (sim in userRatings)
+        continue;
+      // Weighted sum of rating times similarity
+      scores[sim] += itemMatch[item][sim] * userRatings[item];
+      // Sum all the similarites
+      totalSimilarity[sim] += itemMatch[item][sim];
+    }
+  }
+  // Divide each total score by total weighting to get an average
+  for (var item in scores) {
+    if (scores[item] <= 0)
+      continue;
+    mapping[(scores[item]/totalSimilarity[item])] = item;
+  }
 
-
+  return mapping;
 }
 
+function loadMovieLens() {
+  var fs = require('fs');
+  var path = 'movieLens';
+  var movies = {}, prefs = {};
+  var countM = 0;
 
+  fs.readFileSync(path+'/u.item', 'utf-8')
+    .toString().split('\n')
+    .forEach(function(line) {
+      var d = line.split('|', 2);
+      if (d[0] === '') {
+        return;
+      }
+      movies[d[0]] = d[1];
+    });
 
+  // Get only users from file
+  var users = getUsers(fs, path);
 
+  // Initialize preferences based on users choice
+  for (var i in users) {
+    prefs[users[i]] = {};
+  }
+
+  // Only want user, movieID and rating
+  fs.readFileSync(path+'/u.data', 'utf-8')
+   .toString().split('\n')
+   .forEach(function(line) {
+     var items = line.split('\t');
+     var user = items[0];
+     var movieID = items[1];
+     var rating = items[2];
+     try {
+        prefs[user][movies[movieID]] = parseFloat(rating);
+     } catch (e) {}
+   });
+
+  return prefs;
+}
+
+function getUsers(fs, path) {
+  var users = [];
+
+  fs.readFileSync(path+'/u.data', 'utf-8')
+   .toString().split('\n')
+   .forEach(function(line) {
+     var items = line.split('\t');
+     var user = items[0];
+     if (user === '') return;
+     users.push(user);
+   });
+
+  return users;
+}
 
 
 
@@ -120,5 +189,6 @@ module.exports = {
   topMatches: topMatches,
   transform: transformPrefs,
   calculateSimilarItems: calculateSimilarItems,
-  getRecommendedItems: getRecommendedItems
+  getRecommendedItems: getRecommendedItems,
+  loadMovieLens: loadMovieLens
 };
